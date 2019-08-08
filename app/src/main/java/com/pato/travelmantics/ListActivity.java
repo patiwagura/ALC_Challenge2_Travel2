@@ -1,5 +1,6 @@
 package com.pato.travelmantics;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -7,10 +8,15 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.widget.LinearLayout;
 
+import com.firebase.ui.auth.AuthUI;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.FirebaseError;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DatabaseReference;
@@ -24,77 +30,20 @@ public class ListActivity extends AppCompatActivity {
     private FirebaseDatabase mFirebaseDb;
     private DatabaseReference mDbReference;
     private ChildEventListener mChildListener;  //listen to any changes in our data
-    private DealAdapter mAdapter;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_list);
 
-        FirebaseUtil.openFbReference("traveldeals", this);
-        RecyclerView recyclerDeals = (RecyclerView) findViewById(R.id.recyclerDeals);
-        mAdapter = new DealAdapter(this);
-        recyclerDeals.setAdapter(mAdapter);
 
-        //create a layout manager.
-        LinearLayoutManager dealsLayoutMgr = new LinearLayoutManager(this, RecyclerView.VERTICAL, false);
-        recyclerDeals.setLayoutManager(dealsLayoutMgr);
-
-        //Using FirebaseUtil class get a reference to FirebaseDatabase and DatabaseReference
-        //FirebaseUtil.openFbReference("traveldeals");
-        //mFirebaseDb = FirebaseUtil.firebaseDb; //reference to firebaseDb.
-        //mDbReference = FirebaseUtil.dbReference; //
-
-        //get instance of FirebaseDatabase.
-        //mFirebaseDb = FirebaseDatabase.getInstance();
-
-        //db reference.
-        //mDbReference = mFirebaseDb.getReference().child("traveldeals");
-
-        //create a childEvent listener to listen to changes in our firebase db.
-       /* mChildListener = new ChildEventListener() {
-            @Override
-            public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-                //method called when activity is first time loaded, all data-items in db will trigger event here.
-                TextView tvDeals = (TextView) findViewById(R.id.tvDeals);
-                TravelDeal tDeal = dataSnapshot.getValue(TravelDeal.class);
-
-                //append new deals to existing text.
-                tvDeals.setText(tvDeals.getText() + "\n" + tDeal.getTitle() );
-
-            }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-
-            }
-
-            @Override
-            public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-
-            }
-        };
-
-        */
-
-        //add the childListener.
-        //mDbReference.addChildEventListener(mChildListener);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        //remove the firebaseAuthstate listener.
+        //remove the firebase AuthState Listener.
        FirebaseUtil.detachListener();
     }
 
@@ -104,7 +53,7 @@ public class ListActivity extends AppCompatActivity {
 
         FirebaseUtil.openFbReference("traveldeals", this);
         RecyclerView recyclerDeals = (RecyclerView) findViewById(R.id.recyclerDeals);
-        mAdapter = new DealAdapter(this);
+        final DealAdapter mAdapter = new DealAdapter(this);
         recyclerDeals.setAdapter(mAdapter);
 
         //create a layout manager.
@@ -114,10 +63,24 @@ public class ListActivity extends AppCompatActivity {
         FirebaseUtil.attachListener();
     }
 
+    //this method redraws the menus again
+    public void showMyMenus(){
+        invalidateOptionsMenu();
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.list_activity_menu, menu);
+
+        MenuItem insertMenu = menu.findItem(R.id.insert_menu);
+        if(FirebaseUtil.isAdmin == true){
+            //enable the menus if user is admin.
+            insertMenu.setVisible(true);
+        }else{
+            //disable the menus.
+            insertMenu.setVisible(false);
+        }
         return true;
     }
 
@@ -129,7 +92,24 @@ public class ListActivity extends AppCompatActivity {
                 startActivity(mIntent);
                 return true;
 
+            case R.id.logout_menu:
+                AuthUI.getInstance()
+                        .signOut(this)
+                        .addOnCompleteListener(new OnCompleteListener<Void>() {
+                            public void onComplete(@NonNull Task<Void> task) {
+                                // ...
+                                Log.d("LOGOUT", "User logged out.");
+
+                                //goback to login screen if user is not logged in.
+                                FirebaseUtil.attachListener();
+                            }
+                        });
+
+                FirebaseUtil.detachListener();
+                return true;
+
         }
         return super.onOptionsItemSelected(item);
     }
+
 }

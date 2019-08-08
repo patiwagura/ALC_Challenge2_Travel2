@@ -1,13 +1,16 @@
 package com.pato.travelmantics;
 
-import android.app.Activity;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.annotation.Nullable;
 
 import com.firebase.ui.auth.AuthUI;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
@@ -17,12 +20,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static androidx.core.app.ActivityCompat.startActivityForResult;
-
 public class FirebaseUtil {
 
-    // avoid code repetition.
-    //this class creates an instance of firebase database and gets a databasereference
+    //this class creates an instance of firebase database and gets a database reference
 
     public static FirebaseDatabase firebaseDb;
     public static DatabaseReference dbReference;
@@ -30,9 +30,11 @@ public class FirebaseUtil {
 
     //constants.
     private static final int RC_SIGN_IN = 123;
-    public static final String STORAGE_DEAL_PICS = "deals_pictures";
+    public static boolean isAdmin;
+    private static final String FIREDB_ADMIN_CHILD_REF = "administrators";
+    public static final String FIRESTORE_DEALS_PIC_REF = "deals_pictures";
 
-    private static Activity callerActivity;
+    private static ListActivity callerActivity;
 
     //reference fields to firebase storage.
     public static FirebaseStorage mStorage;
@@ -49,17 +51,20 @@ public class FirebaseUtil {
     }
 
     //this method opens a firebase_DB_reference of the child passed as a parameter.
-    public static void openFbReference(String childRef, AppCompatActivity callerUi) {
+    public static void openFbReference(String childRef, final ListActivity callerUi) {
         if (firebaseUtil == null) {
-            //a reference to the Activity where this function was called from.
-            callerActivity = callerUi;
-
             //instance of FirebaseUtil.
             firebaseUtil = new FirebaseUtil();
+
+            //FirebaseDatabase instance.
             firebaseDb = FirebaseDatabase.getInstance();
 
             //instance of FirebaseAuth
             mFirebaseAuth = FirebaseAuth.getInstance();
+
+            //get a reference to the Activity where this function was called from.
+            callerActivity = callerUi;
+
             mAuthListener = new FirebaseAuth.AuthStateListener() {
                 @Override
                 public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
@@ -72,6 +77,8 @@ public class FirebaseUtil {
                     } else{
                         //get userid sent from firebase data-object.
                         String userId = firebaseAuth.getUid();
+                        //check if the user is admin.
+                        checkAdmin(userId);
 
                     }
 
@@ -92,7 +99,8 @@ public class FirebaseUtil {
 
     }
 
-    //method to attach the authstate listener.
+
+    //method to attach the authState Listener.
     public static void attachListener() {
         mFirebaseAuth.addAuthStateListener(mAuthListener);
     }
@@ -105,7 +113,7 @@ public class FirebaseUtil {
     //method to init FireBase Storage.
     public static void connectStorage(){
         mStorage = FirebaseStorage.getInstance();
-        mStorageRef = mStorage.getReference().child(STORAGE_DEAL_PICS);
+        mStorageRef = mStorage.getReference().child(FIRESTORE_DEALS_PIC_REF);
     }
 
     //method to sign user to firebase
@@ -130,6 +138,47 @@ public class FirebaseUtil {
                         .build(),
                 RC_SIGN_IN);
 
+    }
+
+    //method to check if user is admin.
+    private static void checkAdmin(String userId) {
+        FirebaseUtil.isAdmin = false;
+        //Create a reference to firebasedatabase for Administrators node whose child node matches the userId.
+        DatabaseReference mdbRef = firebaseDb.getReference().child(FIREDB_ADMIN_CHILD_REF).child(userId);
+        ChildEventListener childListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+                //this method is only called when child is an administrator matching userId.
+                FirebaseUtil.isAdmin = true;
+                callerActivity.showMyMenus();
+
+                Log.d("Admin", "You are an administrator.");
+
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        };
+
+        //add childlistener to the database.
+        mdbRef.addChildEventListener(childListener);
     }
 
 

@@ -29,8 +29,8 @@ public class DealActivity extends AppCompatActivity {
     private DatabaseReference mDbReference;
     private EditText txtTitle, txtPrice, txtDesc;
     TravelDeal deal;
-    Button btnUploadImg;
-    ImageView imgViewDeal;
+    private Button btnUploadImg;
+    private ImageView imgViewDeal;
     //constant
     private static final int PICTURE_RESULT = 42;
 
@@ -39,12 +39,10 @@ public class DealActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_deal);
 
-        //used before FirebaseUtil was created.
-        //create  an instance of FirebaseDatabase.
-        //mFirebaseDb = FirebaseDatabase.getInstance();
-
-        //a firebaseDbReference creates a path where data is stored.
-        //mDbReference = mFirebaseDb.getReference().child("traveldeals");
+        //Using FirebaseUtil class get a reference to FirebaseDatabase and DatabaseReference
+        //FirebaseUtil.openFbReference("traveldeals", new ListActivity());
+        mFirebaseDb = FirebaseUtil.firebaseDb;
+        mDbReference = FirebaseUtil.dbReference;
 
         //get reference to ui-widgets declared in layout_xml
         txtTitle = (EditText) findViewById(R.id.txtTitle);
@@ -52,11 +50,6 @@ public class DealActivity extends AppCompatActivity {
         txtDesc = (EditText) findViewById(R.id.txtDescription);
         //uploding and showing images using picasso library.
         imgViewDeal = (ImageView) findViewById(R.id.imgDealPic);
-
-        //Using FirebaseUtil class get a reference to FirebaseDatabase and DatabaseReference
-        FirebaseUtil.openFbReference("traveldeals", this);
-        mFirebaseDb = FirebaseUtil.firebaseDb;
-        mDbReference = FirebaseUtil.dbReference;
 
         //get intent passed when starting Activity.
         Intent sIntent = getIntent();
@@ -70,7 +63,6 @@ public class DealActivity extends AppCompatActivity {
         txtTitle.setText(deal.getTitle());
         txtDesc.setText(deal.getDescription());
         txtPrice.setText(deal.getPrice());
-        //showImage(deal.getImageUrl());
 
         //button to upload image.
         btnUploadImg = findViewById(R.id.btnImage);
@@ -84,7 +76,7 @@ public class DealActivity extends AppCompatActivity {
 
                 //show image selected by user.
                 //showImage(deal.getImageUrl());
-                Log.d("UPLOAD-IMG","Button upload image clicked. Function End.");
+                Log.d("BTN-UPLOAD-IMG","Button upload image clicked. Function End.");
             }
         });
 
@@ -94,6 +86,17 @@ public class DealActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.save_menu, menu);
+
+        if(FirebaseUtil.isAdmin){
+            menu.findItem(R.id.save_menu).setVisible(true);
+            menu.findItem(R.id.delete_menu).setVisible(true);
+            enableEditTexts(true);
+        }else{
+            //user not admin.
+            menu.findItem(R.id.save_menu).setVisible(false);
+            menu.findItem(R.id.delete_menu).setVisible(false);
+            enableEditTexts(false);
+        }
         return true;
     }
 
@@ -152,12 +155,12 @@ public class DealActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == PICTURE_RESULT && resultCode == RESULT_OK) {
-            //Create uri to upload image to firebase.
-            Uri imageUri = data.getData();
-
-            //get a storage reference.
+            //To upload an image to firebaseStorage you need 3 steps.
+            //1. obtain uri of file to upload.
+            //2. get firebase storage reference of node to store the file.
+            //3. use putFile() method with returns an async task.
+            Uri imageUri = data.getData();  //get uri from intent received.
             StorageReference storeRef = FirebaseUtil.mStorageRef.child(imageUri.getLastPathSegment());
-
             //upload image to firebase-storage. this method returns asynchronous task e.g thread.
             //add a listener here to get notified of upload success or failure
             storeRef.putFile(imageUri).addOnSuccessListener(this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
@@ -167,10 +170,13 @@ public class DealActivity extends AppCompatActivity {
                     String imgUrl = taskSnapshot.getStorage().getDownloadUrl().toString();
                     deal.setImageUrl(imgUrl);
                     showImage(imgUrl);
-                    Log.d("UPLOAD_TASK", "uploadTask FILE UPLOADED : " + imgUrl);
 
+                    Log.d("UPLOAD_ONSUCCESS", "Image url : onSuccess UPLOAD TASK : " + imgUrl);
                 }
             });
+
+            Log.d("UPLOAD_TASK_RESULT", "uploadTask FILE UPLOADED : LAST_PATH_SEGMENT : " + imageUri.getLastPathSegment() );
+
         }
     }
 
@@ -217,5 +223,12 @@ public class DealActivity extends AppCompatActivity {
         //set focus to Title_textField.
         txtTitle.requestFocus();
 
+    }
+
+    //this method disables and enables the EditTexts.
+    private void enableEditTexts(boolean isEnabled){
+        txtTitle.setEnabled(isEnabled);
+        txtDesc.setEnabled(isEnabled);
+        txtPrice.setEnabled(isEnabled);
     }
 }

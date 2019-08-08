@@ -6,8 +6,6 @@ android {
     buildToolsVersion "29.0.1"
     defaultConfig {
         applicationId "com.pato.travelmantics"
-        minSdkVersion 18
-        minSdkVersion 16
         minSdkVersion 16
         targetSdkVersion 28
         versionCode 1
